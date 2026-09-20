@@ -8,6 +8,14 @@ import { defineConfig, globalIgnores } from "eslint/config";
 export default defineConfig([
   globalIgnores(["dist"]),
   {
+    rules: {
+      "react-refresh/only-export-components": [
+        "warn",
+        {
+          extraHOCs: ["createFileRoute"],
+        },
+      ],
+    },
     files: ["**/*.{ts,tsx}"],
     extends: [
       js.configs.recommended,

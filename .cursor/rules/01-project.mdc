@@ -1,0 +1,228 @@
+---
+description: Core project architecture, folder structure, naming conventions, TypeScript, and code quality rules
+globs: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"]
+alwaysApply: true
+---
+
+# Project Architecture Rules
+
+## Stack
+
+- **Framework**: React 19 + Vite
+- **Language**: TypeScript (strict mode)
+- **Styling**: Tailwind CSS v4 + shadcn/ui
+- **Data Fetching**: TanStack React Query v5
+- **Forms**: React Hook Form + Zod
+- **Routing**: TanStack Router (file-based)
+- **Global State**: Zustand
+- **Toasts**: Sonner
+- **Icons**: Lucide React
+
+---
+
+## Folder Structure
+
+```
+src/
+├── assets/
+│   ├── images/
+│   └── fonts/
+│
+├── components/
+│   ├── ui/                               # shadcn generated — NEVER edit manually
+│   │   └── <component-name>.tsx
+│   ├── shared/                           # Generic UI, zero domain knowledge
+│   │   └── <component-name>.tsx
+│   └── skeletons/
+│       ├── shared/                       # Base skeleton building blocks
+│       │   └── <component-name>.skeleton.tsx
+│       └── <feature-name>/               # Feature skeletons
+│           └── <component-name>.skeleton.tsx
+│
+├── features/                             # Everything belonging to a feature domain
+│   └── <feature-name>/                   # Grouped by domain regardless of reuse count
+│       ├── components/                   # Feature-specific components
+│       ├── hooks/                        # Feature-specific hooks
+│       ├── schemas/                      # Zod schemas for this feature
+│       ├── services/                     # API calls for this feature
+│       └── types/                        # Feature-specific TypeScript types
+│
+├── hooks/                                # Shared hooks used across features
+│   └── <hook-name>.ts
+│
+├── layouts/                              # Layout shell components
+│   └── <layout-name>-layout.tsx
+│
+├── routes/                               # TanStack Router file-based routes
+│   ├── __root.tsx                        # Root route
+│   ├── index.tsx                         # Home /
+│   └── <route-name>/
+│       └── <page-name>.tsx
+│
+├── services/                             # Global API service functions (shared)
+│   └── <feature-name>.service.ts
+│
+├── store/                                # Zustand global state stores
+│   └── <feature-name>.store.ts
+│
+├── types/                                # Global TypeScript types
+│   └── <feature-name>.d.ts
+│
+├── utils/                                # Shared utility functions
+│   ├── app-errors.ts                     # AppError class
+│   └── catch-error.ts                    # catchError utility
+│
+└── config/                               # App configuration & env
+    └── env.ts
+```
+
+---
+
+## Naming Conventions
+
+| Type | Convention | Example |
+|---|---|---|
+| Route files | kebab-case | `forgot-password.tsx` |
+| Components | PascalCase | `ProductCard.tsx` |
+| Hooks | camelCase + `use` prefix | `useProducts.ts` |
+| Schemas | camelCase + `Schema` suffix | `loginSchema` |
+| Services | camelCase + feature | `auth.service.ts` |
+| Store files | camelCase + `.store.ts` | `auth.store.ts` |
+| Constants | SCREAMING_SNAKE_CASE | `JSON_HEADER`, `API_URL` |
+| Types files | camelCase + `.d.ts` | `product.d.ts` |
+| Skeleton files | end in `.skeleton.tsx` | `product-card.skeleton.tsx` |
+| Feature folders | always plural | `products/`, `categories/` |
+
+---
+
+## TypeScript Rules
+
+- Never use `any` — use `unknown` and narrow it, or define a proper type
+- Always derive TypeScript types from Zod schemas using `z.infer<typeof schema>`
+- Type all function return values explicitly
+- Prefer discriminated unions over boolean flags
+
+```typescript
+// ✅ Good — type derived from schema
+export type LoginFields = z.infer<typeof loginSchema>;
+
+// ✅ Good — unknown narrowed
+function handleError(error: unknown) {
+  if (error instanceof Error) return error.message;
+  return "Unexpected error";
+}
+
+// ❌ Bad
+const handler = async (data: any) => { ... };
+```
+
+---
+
+## File Exports
+
+- One component per file
+- Named exports for all components and functions
+- Default export only for route page components
+
+```typescript
+// ✅ components/features/products/ProductCard.tsx
+export function ProductCard({ product }: ProductCardProps) { ... }
+
+// ✅ routes/products/index.tsx — TanStack Router route
+export const Route = createFileRoute("/products/")({
+  component: ProductsPage,
+});
+function ProductsPage() { ... }
+```
+
+---
+
+## Code Quality Rules
+
+**Blank lines between sections** — always leave a blank line after imports, constants, and between logical sections inside a component or function.
+
+**Comments before sections** — add a short, concise comment before each logical section inside a component body. Do not write obvious or long descriptions.
+
+```typescript
+// ✅ Good — concise section comments
+import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+
+export function MyComponent() {
+  // Navigation
+  const navigate = useNavigate();
+
+  // State
+  const [open, setOpen] = useState(false);
+
+  // Queries
+  const { data } = useProducts();
+
+  // Functions
+  function handleOpen() { setOpen(true); }
+
+  return <></>;
+}
+```
+
+**No commented-out code** — remove all dead code. If intentionally kept, add a clear comment explaining why.
+
+**No `console.log`** — remove all console.log before committing. Use `console.error` only for caught errors if needed.
+
+**No unused imports** — every import must be used. Unused imports increase bundle size.
+
+**Stable keys in lists** — never use array index as a React key. Use a unique, stable identifier from the data.
+
+```typescript
+// ✅ Good
+products.map((product) => <ProductCard key={product.id} product={product} />)
+
+// ❌ Bad
+products.map((product, index) => <ProductCard key={index} product={product} />)
+```
+
+---
+
+## Import Order
+
+```typescript
+// 1. React core
+import { useState } from "react";
+
+// 2. Third-party libraries
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+
+// 3. Internal aliases
+import { Button } from "@/components/ui/button";
+import { loginSchema } from "@/features/auth/schemas/auth.schema";
+
+// 4. Relative
+import { ProductCard } from "./ProductCard";
+import type { ProductCardProps } from "./types";
+```
+
+---
+
+## Component Internal Order
+
+Always follow this order inside every component body:
+
+```typescript
+export function MyComponent() {
+  // Navigation
+  // State
+  // Ref
+  // Context
+  // Store
+  // Hooks
+  // Queries
+  // Mutation
+  // Form & validation
+  // Variables  (flexible — use when needed)
+  // Functions
+  // Effects
+
+  return <></>;
+}
+```

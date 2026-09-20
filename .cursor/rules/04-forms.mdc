@@ -1,0 +1,186 @@
+---
+description: Forms — Zod schemas, React Hook Form, shadcn Form components
+globs: ["src/features/**", "src/components/**/*.tsx"]
+alwaysApply: false
+---
+
+# Forms — React Hook Form + Zod + shadcn
+
+## Schema First
+
+Always define the Zod schema before writing the form. Place schemas in `src/features/<feature>/schemas/`.
+Derive the TypeScript type from the schema — never write types manually.
+
+```typescript
+// src/features/auth/schemas/auth.schema.ts
+import { z } from "zod";
+
+export const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+export const registerSchema = z
+  .object({
+    firstName: z.string().min(2, "First name must be at least 2 characters"),
+    lastName: z.string().min(2, "Last name must be at least 2 characters"),
+    email: z.string().email("Invalid email address"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+// Always derive types from schemas — never write manually
+export type LoginFields = z.infer<typeof loginSchema>;
+export type RegisterFields = z.infer<typeof registerSchema>;
+```
+
+---
+
+## Form Component Pattern
+
+Always use shadcn `<Form>` + `<FormField>` — never wire up raw HTML forms.
+
+```typescript
+// src/features/auth/components/login-form.tsx
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { loginSchema, type LoginFields } from "../schemas/auth.schema";
+import { useLogin } from "../hooks/use-login";
+
+export function LoginForm() {
+  // Hooks
+  const { isPending, login } = useLogin();
+
+  // Form
+  const form = useForm<LoginFields>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  // Functions
+  function onSubmit(values: LoginFields) {
+    login(values);
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+
+        {/* Email */}
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              {/* Label */}
+              <FormLabel>Email</FormLabel>
+
+              {/* Field */}
+              <FormControl>
+                <Input
+                  type="email"
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  {...field}
+                />
+              </FormControl>
+
+              {/* Feedback */}
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Password */}
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              {/* Label */}
+              <FormLabel>Password</FormLabel>
+
+              {/* Field */}
+              <FormControl>
+                <Input
+                  type="password"
+                  autoComplete="current-password"
+                  {...field}
+                />
+              </FormControl>
+
+              {/* Feedback */}
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Submit */}
+        <Button type="submit" className="w-full" disabled={isPending}>
+          {isPending ? "Signing in..." : "Sign in"}
+        </Button>
+
+      </form>
+    </Form>
+  );
+}
+```
+
+---
+
+## Field Comment Structure
+
+Every form field must follow this comment structure:
+
+```typescript
+{/* Field name */}
+<FormField
+  control={form.control}
+  name="fieldName"
+  render={({ field }) => (
+    <FormItem>
+      {/* Label */}
+      <FormLabel>Label text</FormLabel>
+
+      {/* Field */}
+      <FormControl>
+        <Input {...field} />
+      </FormControl>
+
+      {/* Feedback */}
+      <FormMessage />
+    </FormItem>
+  )}
+/>
+```
+
+---
+
+## Rules Summary
+
+- ✅ Schemas in `src/features/<feature>/schemas/`
+- ✅ Always derive `type` from schema with `z.infer<typeof schema>`
+- ✅ Always use shadcn `<Form>` + `<FormField>` — never raw HTML forms
+- ✅ Always use `zodResolver` — never manual validation
+- ✅ Use mutation `isPending` to disable the submit button
+- ✅ Handle errors in the mutation `onError` — not inside `onSubmit`
+- ❌ Never use `useState` to track form field values
+- ❌ Never access `register()` directly — always use `<FormField>` with `control`

@@ -1,0 +1,197 @@
+---
+description: TanStack Router — file-based routing, route setup, navigation, loaders
+globs: ["src/routes/**/*.tsx", "src/routes/**/*.ts"]
+alwaysApply: false
+---
+
+# Routing — TanStack Router
+
+## File-Based Routes
+
+TanStack Router uses file-based routing. The file path maps directly to the URL.
+
+```
+src/routes/
+├── __root.tsx          → / (root layout wrapping all routes)
+├── index.tsx           → /
+├── about.tsx           → /about
+├── auth/
+│   ├── login.tsx       → /auth/login
+│   └── register.tsx    → /auth/register
+└── dashboard/
+    ├── index.tsx        → /dashboard
+    └── settings.tsx     → /dashboard/settings
+```
+
+---
+
+## Root Route
+
+```typescript
+// src/routes/__root.tsx
+import { createRootRoute, Outlet } from "@tanstack/react-router";
+
+import { RootLayout } from "@/layouts/root-layout";
+
+export const Route = createRootRoute({
+  component: RootLayout,
+});
+```
+
+---
+
+## Page Route
+
+```typescript
+// src/routes/dashboard/index.tsx
+import { createFileRoute } from "@tanstack/react-router";
+
+export const Route = createFileRoute("/dashboard/")({
+  component: DashboardPage,
+});
+
+function DashboardPage() {
+  return <div>Dashboard</div>;
+}
+```
+
+---
+
+## Route with Loader (data fetching)
+
+Prefer loaders for initial data — they run before the component renders:
+
+```typescript
+// src/routes/products/index.tsx
+import { createFileRoute } from "@tanstack/react-router";
+
+import { getProductsService } from "@/services/product.service";
+
+export const Route = createFileRoute("/products/")({
+  loader: () => getProductsService(),
+  component: ProductsPage,
+});
+
+function ProductsPage() {
+  // Navigation
+  const products = Route.useLoaderData();
+
+  return (
+    <ul>
+      {products.map((product) => (
+        <li key={product.id}>{product.name}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+---
+
+## Dynamic Routes
+
+```typescript
+// src/routes/products/$id.tsx
+import { createFileRoute } from "@tanstack/react-router";
+
+export const Route = createFileRoute("/products/$id")({
+  loader: ({ params }) => getProductByIdService(params.id),
+  component: ProductDetailPage,
+});
+
+function ProductDetailPage() {
+  // Navigation
+  const { id } = Route.useParams();
+  const product = Route.useLoaderData();
+
+  return <div>{product.name}</div>;
+}
+```
+
+---
+
+## Navigation
+
+Always use TanStack Router for navigation — never use `window.location` or `history`:
+
+```typescript
+import { useNavigate, Link } from "@tanstack/react-router";
+
+// Programmatic navigation
+export function LoginForm() {
+  // Navigation
+  const navigate = useNavigate();
+
+  // Functions
+  function onSuccess() {
+    navigate({ to: "/dashboard" });
+  }
+}
+
+// Link component
+<Link to="/dashboard">Go to Dashboard</Link>
+<Link to="/products/$id" params={{ id: product.id }}>View Product</Link>
+```
+
+---
+
+## Search Params
+
+```typescript
+import { createFileRoute } from "@tanstack/react-router";
+import { z } from "zod";
+
+const searchSchema = z.object({
+  page: z.number().default(1),
+  q: z.string().optional(),
+});
+
+export const Route = createFileRoute("/products/")({
+  validateSearch: searchSchema,
+  component: ProductsPage,
+});
+
+function ProductsPage() {
+  // Navigation
+  const { page, q } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+
+  // Functions
+  function handleSearch(value: string) {
+    navigate({ search: (prev) => ({ ...prev, q: value, page: 1 }) });
+  }
+}
+```
+
+---
+
+## Protected Routes
+
+```typescript
+// src/routes/dashboard/route.tsx  ← layout route for dashboard
+import { createFileRoute, redirect } from "@tanstack/react-router";
+
+import { useAuthStore } from "@/store/auth.store";
+
+export const Route = createFileRoute("/dashboard")({
+  beforeLoad: () => {
+    const token = useAuthStore.getState().token;
+    if (!token) {
+      throw redirect({ to: "/auth/login" });
+    }
+  },
+});
+```
+
+---
+
+## Rules Summary
+
+- ✅ File path = URL path — follow TanStack Router file conventions
+- ✅ Use `Route.useLoaderData()` for loader data — never refetch in the component
+- ✅ Use `Route.useParams()` for dynamic params
+- ✅ Use `Route.useSearch()` for URL search params with Zod validation
+- ✅ Use `useNavigate` and `Link` from `@tanstack/react-router`
+- ✅ Use `beforeLoad` for route protection — never check auth inside the component
+- ❌ Never use `window.location` for navigation
+- ❌ Never use `useEffect` to redirect

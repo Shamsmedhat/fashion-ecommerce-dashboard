@@ -1,0 +1,225 @@
+---
+description: Data fetching, mutations, React Query hooks, services pattern
+globs: ["src/features/**", "src/hooks/**", "src/services/**", "**/*.tsx"]
+alwaysApply: false
+---
+
+# Data Fetching & Mutations
+
+## Architecture
+
+All data flows through this pattern:
+
+```
+Service function → Custom Hook (useQuery/useMutation) → Component
+```
+
+Never call `useQuery` or `useMutation` directly inside a component. Always wrap in a custom hook.
+
+---
+
+## Services — API Call Functions
+
+Services are plain async functions that call the API. No hooks, no side effects.
+
+Place in `src/features/<feature>/services/` if feature-specific, or `src/services/` if shared.
+
+```typescript
+// src/features/products/services/product.service.ts
+import { AppError } from "@/utils/app-errors";
+import { env } from "@/config/env";
+import { JSON_HEADER } from "@/config/constants";
+
+export async function getProductsService(params?: QueryParams): Promise<ProductsResponse> {
+  const url = new URL(`${env.API_URL}/products`);
+
+  if (params) url.search = buildQueryString(params);
+
+  const response = await fetch(url.toString(), {
+    headers: { ...JSON_HEADER },
+  });
+
+  if (!response.ok) {
+    const errorData: ErrorResponse = await response.json().catch(() => ({
+      status: "error" as const,
+      message: `Request failed with status ${response.status}`,
+    }));
+    throw new AppError(errorData.message, response.status);
+  }
+
+  return response.json();
+}
+
+export async function createProductService(
+  input: CreateProductInput
+): Promise<Product> {
+  const response = await fetch(`${env.API_URL}/products`, {
+    method: "POST",
+    headers: { ...JSON_HEADER },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    const errorData: ErrorResponse = await response.json().catch(() => ({
+      status: "error" as const,
+      message: `Request failed with status ${response.status}`,
+    }));
+    throw new AppError(errorData.message, response.status);
+  }
+
+  return response.json();
+}
+```
+
+---
+
+## Query Key Factory
+
+Centralize all query keys — never hardcode strings inline.
+
+```typescript
+// src/config/query-keys.ts
+export const queryKeys = {
+  products: {
+    all: ["products"] as const,
+    list: (filters?: ProductFilters) => ["products", "list", filters] as const,
+    detail: (id: string) => ["products", "detail", id] as const,
+  },
+  auth: {
+    me: ["auth", "me"] as const,
+  },
+} as const;
+```
+
+---
+
+## Read Hooks (useQuery)
+
+```typescript
+// src/features/products/hooks/use-products.ts
+import { useQuery } from "@tanstack/react-query";
+
+import { queryKeys } from "@/config/query-keys";
+import { getProductsService } from "../services/product.service";
+import type { ProductFilters } from "../types/product.d";
+
+export function useProducts(filters?: ProductFilters) {
+  return useQuery({
+    queryKey: queryKeys.products.list(filters),
+    queryFn: () => getProductsService(filters),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useProduct(id: string) {
+  return useQuery({
+    queryKey: queryKeys.products.detail(id),
+    queryFn: () => getProductByIdService(id),
+    enabled: Boolean(id),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+```
+
+---
+
+## Mutation Hooks (useMutation)
+
+Always handle `onError` with `toast.error()`. Always handle `onSuccess` with cache invalidation.
+
+```typescript
+// src/features/products/hooks/use-create-product.ts
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+
+import { queryKeys } from "@/config/query-keys";
+import { createProductService } from "../services/product.service";
+import { getErrorMessage } from "@/utils/catch-error";
+import type { CreateProductInput } from "../types/product.d";
+
+export function useCreateProduct() {
+  // Queries
+  const queryClient = useQueryClient();
+
+  // Mutation
+  const { isPending, mutate } = useMutation({
+    mutationFn: (input: CreateProductInput) => createProductService(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
+      toast.success("Product created");
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error));
+    },
+  });
+
+  return { isPending, createProduct: mutate };
+}
+```
+
+---
+
+## Mutation with Navigation
+
+```typescript
+// src/features/auth/hooks/use-login.ts
+import { useMutation } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
+
+import { loginService } from "../services/auth.service";
+import { useAuthStore } from "@/store/auth.store";
+import { getErrorMessage } from "@/utils/catch-error";
+import type { LoginFields } from "../schemas/auth.schema";
+
+export function useLogin() {
+  // Navigation
+  const navigate = useNavigate();
+
+  // Store
+  const setToken = useAuthStore((state) => state.setToken);
+
+  // Mutation
+  const { isPending, mutate } = useMutation({
+    mutationFn: (fields: LoginFields) => loginService(fields),
+    onSuccess: (data) => {
+      setToken(data.token);
+      navigate({ to: "/dashboard" });
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error));
+    },
+  });
+
+  return { isPending, login: mutate };
+}
+```
+
+---
+
+## Stale Time Guidelines
+
+```typescript
+// src/config/query.config.ts
+export const STALE_TIMES = {
+  REAL_TIME: 0,                // Live data (prices, notifications)
+  SHORT: 1000 * 30,            // 30 seconds
+  STANDARD: 1000 * 60 * 5,    // 5 minutes (default)
+  LONG: 1000 * 60 * 30,       // 30 minutes (static lists)
+  PERMANENT: Infinity,         // User preferences, config
+} as const;
+```
+
+---
+
+## Rules Summary
+
+- ✅ Custom hook wraps every `useQuery` and `useMutation` — never raw in components
+- ✅ Services throw `AppError(message, statusCode)` — never generic `Error`
+- ✅ Always handle `onError` with `toast.error(getErrorMessage(error))`
+- ✅ Always invalidate relevant queries in `onSuccess`
+- ✅ Centralize query keys in `src/config/query-keys.ts`
+- ✅ Set `staleTime` explicitly on every query
+- ❌ Never fetch in `useEffect`
+- ❌ Never call `useQuery`/`useMutation` directly in components
+- ❌ Never filter or sort data client-side if the API can do it

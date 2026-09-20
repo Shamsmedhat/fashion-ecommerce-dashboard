@@ -1,0 +1,248 @@
+---
+description: Component architecture — categories, structure, skeletons, loading/error/empty states
+globs: ["src/components/**/*.tsx", "src/features/**/*.tsx"]
+alwaysApply: false
+---
+
+# Component Architecture
+
+## Component Categories
+
+| Folder | Purpose | Example |
+|---|---|---|
+| `components/ui/` | shadcn generated — never edit | `button.tsx`, `input.tsx` |
+| `components/shared/` | Generic UI, zero domain knowledge | `EmptyState.tsx`, `ConfirmDialog.tsx` |
+| `components/skeletons/<feature>/` | Feature skeleton loaders | `product-card.skeleton.tsx` |
+| `components/skeletons/shared/` | Base skeleton building blocks | `bar.skeleton.tsx` |
+| `features/<feature>/components/` | Feature-specific components | `ProductCard.tsx` |
+| `layouts/` | Layout shell components | `root-layout.tsx` |
+
+---
+
+## Props Pattern
+
+Every component that accepts props must have an explicit typed interface.
+Always pass all required props — never assume defaults unless explicitly optional.
+
+```typescript
+// ✅ Good
+interface ProductCardProps {
+  product: Product;
+  className?: string;
+  onAddToCart?: (id: string) => void;
+}
+
+export function ProductCard({ product, className, onAddToCart }: ProductCardProps) {
+  // ...
+}
+```
+
+---
+
+## Loading / Error / Empty States
+
+Every data-driven component must handle all three states:
+
+```typescript
+// src/features/products/components/product-list.tsx
+import { useProducts } from "../hooks/use-products";
+import { ProductCard } from "./ProductCard";
+import { ProductListSkeleton } from "@/components/skeletons/products/product-list.skeleton";
+
+interface ProductListProps {
+  filters?: ProductFilters;
+}
+
+export function ProductList({ filters }: ProductListProps) {
+  // Queries
+  const { data: products, isLoading, isError } = useProducts(filters);
+
+  // Loading state
+  if (isLoading) return <ProductListSkeleton />;
+
+  // Error state
+  if (isError) return <ErrorState message="Failed to load products" />;
+
+  // Empty state
+  if (!products?.length) return <EmptyState title="No products found" />;
+
+  return (
+    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {products.map((product) => (
+        <li key={product.id}>
+          <ProductCard product={product} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+---
+
+## Skeleton Pattern
+
+Create a skeleton for every data-driven component.
+
+```typescript
+// src/components/skeletons/shared/bar.skeleton.tsx
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+
+interface BarSkeletonProps {
+  className?: string;
+}
+
+export function BarSkeleton({ className }: BarSkeletonProps) {
+  return <Skeleton className={cn("h-4 rounded", className)} />;
+}
+
+// src/components/skeletons/products/product-card.skeleton.tsx
+import { Skeleton } from "@/components/ui/skeleton";
+import { BarSkeleton } from "../shared/bar.skeleton";
+
+export function ProductCardSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-lg border">
+      <Skeleton className="aspect-square w-full" />
+      <div className="space-y-2 p-4">
+        <BarSkeleton className="w-3/4" />
+        <BarSkeleton className="w-1/2" />
+      </div>
+    </div>
+  );
+}
+
+export function ProductListSkeleton() {
+  return (
+    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Index as key is acceptable — static placeholders with no identity */}
+      {Array.from({ length: 6 }).map((_, i) => (
+        <li key={i}>
+          <ProductCardSkeleton />
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+---
+
+## Suspense (React 19)
+
+React 19 supports Suspense with async components and `use()`. Wrap data-fetching components:
+
+```typescript
+// src/routes/products/index.tsx
+import { Suspense } from "react";
+import { ProductListSkeleton } from "@/components/skeletons/products/product-list.skeleton";
+import { ProductList } from "@/features/products/components/product-list";
+
+function ProductsPage() {
+  return (
+    <section>
+      <Suspense fallback={<ProductListSkeleton />}>
+        <ProductList />
+      </Suspense>
+    </section>
+  );
+}
+```
+
+---
+
+## Lazy Loading
+
+Use `React.lazy` for heavy components not needed on initial render:
+
+```typescript
+import { lazy, Suspense } from "react";
+import { ChartSkeleton } from "@/components/skeletons/shared/chart.skeleton";
+
+const HeavyChart = lazy(() => import("@/features/analytics/components/HeavyChart"));
+
+export function DashboardPage() {
+  return (
+    <Suspense fallback={<ChartSkeleton />}>
+      <HeavyChart />
+    </Suspense>
+  );
+}
+```
+
+---
+
+## Dialog Pattern
+
+```typescript
+// src/components/shared/confirm-dialog.tsx
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+interface ConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description: string;
+  onConfirm: () => void;
+  isPending?: boolean;
+  variant?: "default" | "destructive";
+}
+
+export function ConfirmDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  onConfirm,
+  isPending,
+  variant = "default",
+}: ConfirmDialogProps) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onConfirm}
+            disabled={isPending}
+            className={
+              variant === "destructive"
+                ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                : ""
+            }
+          >
+            {isPending ? "Loading..." : "Confirm"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+```
+
+---
+
+## Rules Summary
+
+- ✅ Every data-driven component handles loading, error, and empty states
+- ✅ Every data-driven component has a matching skeleton
+- ✅ All required props must always be passed — unless explicitly optional
+- ✅ Use `key={item.id}` — never `key={index}`
+- ✅ Accept and forward `className` prop for composability
+- ✅ Use `React.lazy` + `Suspense` for code splitting
+- ❌ Never use `React.FC` type — use regular function declarations
+- ❌ Never edit files inside `components/ui/`

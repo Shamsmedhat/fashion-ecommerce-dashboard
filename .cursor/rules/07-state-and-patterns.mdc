@@ -1,0 +1,260 @@
+---
+description: Global state (Zustand), providers setup, error handling, Sonner toasts, performance
+globs: ["**/*.ts", "**/*.tsx", "src/store/**", "src/config/**"]
+alwaysApply: false
+---
+
+# State, Providers, Error Handling & Performance
+
+## Zustand — Global State
+
+Use Zustand for global client state only — auth token, UI preferences, cart, etc.
+Do NOT put server data in Zustand — that belongs in React Query.
+
+```typescript
+// src/store/auth.store.ts
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+
+interface AuthState {
+  token: string | null;
+  setToken: (token: string) => void;
+  clearToken: () => void;
+}
+
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      token: null,
+      setToken: (token) => set({ token }),
+      clearToken: () => set({ token: null }),
+    }),
+    { name: "auth-storage" }
+  )
+);
+```
+
+```typescript
+// src/store/ui.store.ts
+import { create } from "zustand";
+
+interface UIState {
+  sidebarOpen: boolean;
+  toggleSidebar: () => void;
+}
+
+export const useUIStore = create<UIState>((set) => ({
+  sidebarOpen: true,
+  toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+}));
+```
+
+---
+
+## What Goes Where
+
+| Data type | Where |
+|---|---|
+| Server data (products, users) | React Query |
+| Auth token, user session | Zustand + persist |
+| UI state (sidebar, theme) | Zustand |
+| Form state | React Hook Form |
+| URL state (filters, pagination) | TanStack Router search params |
+| Component-local state | useState |
+
+---
+
+## Providers Setup
+
+Group all global providers in `src/main.tsx` or a dedicated `src/providers/app-providers.tsx`.
+
+```typescript
+// src/providers/app-providers.tsx
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { RouterProvider } from "@tanstack/react-router";
+import { ThemeProvider } from "next-themes";
+import { Toaster } from "sonner";
+
+import { router } from "@/config/router";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,
+      retry: 1,
+    },
+  },
+});
+
+export function AppProviders() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <RouterProvider router={router} />
+        <Toaster richColors position="top-center" />
+      </ThemeProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
+  );
+}
+```
+
+```typescript
+// src/main.tsx
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+
+import { AppProviders } from "./providers/app-providers";
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <AppProviders />
+  </StrictMode>
+);
+```
+
+---
+
+## Error Handling
+
+### AppError class
+
+```typescript
+// src/utils/app-errors.ts
+export type AppErrorType = "authentication" | "authorization" | "general";
+
+export class AppError extends Error {
+  public readonly statusCode: number;
+  public readonly type: AppErrorType;
+
+  constructor(message: string, statusCode: number, type: AppErrorType = "general") {
+    super(message);
+    this.name = "AppError";
+    this.statusCode = statusCode;
+    this.type = type;
+  }
+
+  get isAuthentication() { return this.type === "authentication"; }
+  get isAuthorization() { return this.type === "authorization"; }
+}
+```
+
+### getErrorMessage utility
+
+```typescript
+// src/utils/catch-error.ts
+import { AppError } from "./app-errors";
+
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof AppError) return error.message;
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return "An unexpected error occurred";
+}
+```
+
+### Services always throw AppError
+
+```typescript
+// ✅ Good
+if (!response.ok) {
+  const errorData: ErrorResponse = await response.json().catch(() => ({
+    status: "error" as const,
+    message: `Request failed with status ${response.status}`,
+  }));
+  throw new AppError(errorData.message, response.status);
+}
+
+// ❌ Bad
+if (!response.ok) {
+  throw new Error("Something went wrong");
+}
+```
+
+---
+
+## Sonner Toast Patterns
+
+```typescript
+import { toast } from "sonner";
+
+// Success
+toast.success("Product created");
+
+// Error — always in mutation onError
+toast.error(getErrorMessage(error));
+
+// With description
+toast.error("Upload failed", {
+  description: "File size must be under 5MB",
+});
+
+// Promise — for async with loading state
+toast.promise(saveProduct(data), {
+  loading: "Saving...",
+  success: "Saved!",
+  error: "Failed to save",
+});
+```
+
+Rules:
+- Toast calls go in mutation callbacks — never inside render or useEffect
+- Always use `getErrorMessage(error)` — never hardcode error strings in `onError`
+
+---
+
+## Environment Variables
+
+```typescript
+// src/config/env.ts
+export const env = {
+  API_URL: import.meta.env.VITE_API_URL ?? "",
+} as const;
+```
+
+Always use `import.meta.env.VITE_*` — never `process.env` in Vite.
+Prefix all client-side env vars with `VITE_`.
+
+---
+
+## Constants
+
+```typescript
+// src/config/constants.ts
+export const JSON_HEADER = {
+  "Content-Type": "application/json",
+} as const;
+```
+
+---
+
+## Performance — Code Splitting
+
+Use `React.lazy` + `Suspense` for route-level and heavy component code splitting:
+
+```typescript
+import { lazy, Suspense } from "react";
+
+const HeavyComponent = lazy(
+  () => import("@/features/analytics/components/HeavyChart")
+);
+
+<Suspense fallback={<ChartSkeleton />}>
+  <HeavyComponent />
+</Suspense>
+```
+
+---
+
+## Rules Summary
+
+- ✅ Zustand for global client state only — server data stays in React Query
+- ✅ All providers grouped in `app-providers.tsx`
+- ✅ Services throw `AppError` — never generic `Error`
+- ✅ `getErrorMessage()` in all `onError` callbacks
+- ✅ Toast calls in mutation callbacks only — never in render
+- ✅ `import.meta.env.VITE_*` for env vars — never `process.env`
+- ✅ `React.lazy` + `Suspense` for code splitting
+- ❌ Never put server data in Zustand
+- ❌ Never leave `console.log` in committed code
