@@ -2,6 +2,9 @@ import type { ProductFilters } from "@/features/products/types/product";
 import type { CategoryFilters } from "@/features/categories/types/category";
 
 export const queryKeys = {
+  auth: {
+    me: ["auth", "me"] as const,
+  },
   products: {
     all: ["products"] as const,
     list: (filters?: ProductFilters) => ["products", "list", filters] as const,

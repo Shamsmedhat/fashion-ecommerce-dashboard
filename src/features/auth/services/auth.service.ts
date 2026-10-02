@@ -1,6 +1,6 @@
 import { apiFetch } from "@/services/api";
 import type { LoginFields } from "../schemas/auth.schema";
-import type { LoginResponse } from "../types/auth";
+import type { LoginResponse, MeResponse } from "../types/auth";
 
 // Detect Egyptian phone numbers (start with "01"); everything else is treated as email.
 function isPhone(identifier: string): boolean {
@@ -17,6 +17,11 @@ export async function loginService(fields: LoginFields): Promise<LoginResponse> 
     method: "POST",
     body,
   });
+}
+
+// Protected endpoint: answers 401 when the stored token has expired or been revoked.
+export async function getMeService(): Promise<MeResponse> {
+  return apiFetch<MeResponse>("/users/me");
 }
 
 export async function logoutService(): Promise<void> {

@@ -18,12 +18,18 @@ export interface AdminUser {
   createdAt: string;
 }
 
-// `status` is the number 200 on login (a backend quirk), not the string "success".
 export interface LoginResponse {
-  status: number;
+  status: ApiSuccessStatus;
   token: string;
   data: {
     user: AdminUser;
     bag: unknown;
+  };
+}
+
+export interface MeResponse {
+  status: ApiSuccessStatus;
+  data: {
+    user: AdminUser;
   };
 }

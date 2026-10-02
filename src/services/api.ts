@@ -34,6 +34,11 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
 
   if (!res.ok) {
     const message = (await safeReadMessage(res)) ?? res.statusText ?? "Request failed";
+
+    // The API rejected the token we sent (expired or revoked): the session is over.
+    // Clearing it makes the dashboard shell send the user back to the login page.
+    if (res.status === 401 && token) useAuthStore.getState().clearAuth();
+
     throw new AppError(message, res.status, errorTypeFromStatus(res.status));
   }
 

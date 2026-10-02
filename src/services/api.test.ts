@@ -103,6 +103,37 @@ describe("apiFetch", () => {
     });
   });
 
+  // Regression: an expired token used to leave the admin on a dashboard where every request failed.
+  it("ends the session when the API rejects the token it was sent", async () => {
+    useAuthStore.setState({ token: "expired-token" });
+    const fetchMock = vi.fn().mockResolvedValue(
+      mockFetchResponse({
+        ok: false,
+        status: 401,
+        json: async () => ({ message: "Your token has expired! Please log in again." }),
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(apiFetch("/products")).rejects.toMatchObject({ statusCode: 401 });
+
+    expect(useAuthStore.getState().token).toBeNull();
+  });
+
+  it("keeps the session on errors that are not about the token", async () => {
+    useAuthStore.setState({ token: "tok-123" });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(mockFetchResponse({ ok: false, status: 403, json: async () => ({}) }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(apiFetch("/products", { method: "POST", body: {} })).rejects.toBeInstanceOf(
+      AppError,
+    );
+
+    expect(useAuthStore.getState().token).toBe("tok-123");
+  });
+
   it("throws an authorization AppError on 403", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       mockFetchResponse({
