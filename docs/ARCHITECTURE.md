@@ -68,7 +68,8 @@ cache is invalidated immediately instead of waiting out the TTL. (See §12.)
 | `shadcn` | CLI that scaffolds `components/ui/*` (Radix + Tailwind). **Never hand‑edited.** |
 | `typescript` (~5.9) + `typescript-eslint` | Strict typing + lint rules. |
 | `eslint` (9) + `@tanstack/eslint-plugin-query` + `eslint-plugin-react-hooks` + `eslint-plugin-react-refresh` | Linting, including Query‑specific and hooks rules. |
-| `vitest` (4) | Unit testing (see `src/**/*.test.ts`). |
+| `vitest` (4) + Testing Library + `jsdom` | Unit and component tests (see §15). |
+| `@playwright/test` | End‑to‑end tests in a real browser (see §15). |
 | `@tanstack/react-query-devtools`, `@tanstack/react-router-devtools` | In‑app debugging panels. |
 
 ---
@@ -250,6 +251,15 @@ State lives in a tiny **persisted Zustand store** (`store/auth.store.ts`, key
 3. Admins: `setAuth(token, user)` → navigate to `/dashboard`.
 4. `429` (rate limited by the backend) gets a dedicated message.
 
+**Session guard** (`use-session-guard.ts`, mounted by the dashboard shell):
+
+- On load it calls the protected `GET /users/me`. Most dashboard reads are public endpoints
+  that never reject a token, so without this an expired session would go unnoticed until the
+  first save.
+- `apiFetch` clears the session whenever the API answers **401** to a token it sent; the guard
+  reacts to the cleared token by dropping the query cache and navigating to the login page.
+- If the account is no longer an admin, the session is cleared as well.
+
 **Logout** (`use-logout.ts`): best‑effort server cookie clear, then `clearAuth()`,
 `queryClient.clear()` (drop all cached data), and redirect to login.
 
@@ -365,6 +375,8 @@ the Arabic numbering system (`arab` vs `latn`). Components translate via `useTra
 - **shadcn/ui** components in `components/ui/*` are generated from Radix primitives and
   **must not be hand‑edited**. Variants come from `class-variance-authority`; classes are
   merged with `cn()` (`clsx` + `tailwind-merge`).
+- The sidebar is a fixed column from the `lg` breakpoint up and an off‑canvas drawer below it,
+  opened from the top bar; it mirrors correctly in RTL.
 - `components/shared/*` holds domain‑free building blocks (`DataTable`, `PageHeader`,
   `Pagination`, `StatusBadge`, `EmptyState`, `ErrorState`, skeleton loaders…).
 
@@ -466,6 +478,7 @@ sequenceDiagram
 - `utils/catch-error.ts` — `getErrorMessage(unknown)` normalizes anything into a string
   for toasts; `catchError` wraps unknowns into `AppError`.
 - Mutations surface failures via `onError → toast.error(getErrorMessage(error))`.
+- A **401** for a token the dashboard sent ends the session (see §7).
 - Storefront revalidation is intentionally **silent on failure** (logged, never toasted)
   so a stale cache never breaks the admin's save.
 
@@ -480,8 +493,14 @@ sequenceDiagram
 | `VITE_API_URL` | `http://localhost:3000/api/v1` | `apiFetch` base URL |
 | `VITE_STOREFRONT_URL` | `http://localhost:3001` | `revalidateStorefront` target |
 
+Both are **required at build time**: Vite inlines them into the bundle, so a build without them
+would ship with empty URLs and send every API call to the dashboard's own origin. `vite.config.ts`
+runs `assertRequiredEnv` (`config/required-env.ts`) and fails the build with the name of the
+missing variable instead.
+
 Other config: `config/constants.ts` (`DEFAULT_PAGE/LIMIT/SORT`, image‑upload guards,
-variant sizes), `config/router.ts`, `config/query.config.ts`, `config/query-keys.ts`.
+variant sizes, the demo login pre‑filled on the login form), `config/router.ts`,
+`config/query.config.ts`, `config/query-keys.ts`.
 
 Storefront env (for the revalidate route): `API_URL`, `CMS_ORIGIN`
 (= `http://localhost:5173`), `NEXTAUTH_SECRET`. `REVALIDATE_SECRET` is no longer used.
@@ -495,12 +514,29 @@ Storefront env (for the revalidate route): `API_URL`, `CMS_ORIGIN`
 | `yarn dev` | Vite dev server (`:5173`). |
 | `yarn build` | `tsc -b` typecheck + `vite build` (runs the React Compiler via Babel). |
 | `yarn lint` | ESLint (TS, React hooks, Query rules). |
-| `yarn test` / `yarn test:watch` | Vitest. |
+| `yarn test` / `yarn test:watch` | Vitest — unit and component tests. |
+| `yarn test:e2e` | Playwright — end‑to‑end tests in a real browser. |
 | `yarn preview` | Serve the production build locally. |
 
-Tests live next to their subjects (`src/services/api.test.ts`,
-`src/utils/build-query-string.test.ts`). The React Compiler auto‑memoizes components at
-build time, so manual `useMemo`/`useCallback` are rarely needed.
+### Tests
+
+| Layer | Where | What it covers |
+|---|---|---|
+| Unit | `src/**/*.test.ts` | `apiFetch` (headers, bodies, errors, ending the session on 401), the product services (images go to Cloudinary, the API gets JSON), query strings, the build‑time env guard. Runs in plain Node. |
+| Component | `src/**/*.test.tsx` | The login form and the variant manager, rendered with Testing Library in jsdom (opt‑in per file with `// @vitest-environment jsdom`). |
+| End‑to‑end | `e2e/*.spec.ts` | Login, creating a product, editing a variant's discount, deleting a category, an expired session, and the mobile navigation. |
+
+The end‑to‑end suite drives the real dashboard against the real API. Playwright starts both:
+the API runs on a throwaway in‑memory MongoDB seeded with the demo catalogue
+(`yarn dev:memory` in the backend repo, expected at `../fashion-ecommerce-backend`, or wherever
+`BACKEND_DIR` points), and Cloudinary uploads are answered by the test itself. Nothing real is
+touched.
+
+GitHub Actions (`.github/workflows/ci.yml`) runs lint, the unit and component tests, the
+production build and the end‑to‑end suite on every push.
+
+The React Compiler auto‑memoizes components at build time, so manual `useMemo`/`useCallback`
+are rarely needed.
 
 ---
 
