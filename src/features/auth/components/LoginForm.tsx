@@ -21,6 +21,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { DEMO_CREDENTIALS } from "@/config/constants";
 import { buildLoginSchema, type LoginFields } from "../schemas/auth.schema";
 import { useLogin } from "../hooks/use-login";
 
@@ -35,10 +36,7 @@ export function LoginForm() {
   // Form & validation
   const form = useForm<LoginFields>({
     resolver: zodResolver(buildLoginSchema(t)),
-    defaultValues: {
-      identifier: "",
-      password: "",
-    },
+    defaultValues: { ...DEMO_CREDENTIALS },
   });
 
   // Functions
