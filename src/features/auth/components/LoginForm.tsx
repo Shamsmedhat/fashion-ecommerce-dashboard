@@ -62,10 +62,10 @@ export function LoginForm() {
                   {/* Label */}
                   <FormLabel>{t("login-identifier-label")}</FormLabel>
 
-                  {/* Field */}
-                  <FormControl>
-                    <div className="relative">
-                      <Mail className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  {/* Field — FormControl wraps the input itself so the label points at it */}
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <FormControl>
                       <Input
                         type="text"
                         inputMode="text"
@@ -74,8 +74,8 @@ export function LoginForm() {
                         className="h-10 ps-9 text-sm"
                         {...field}
                       />
-                    </div>
-                  </FormControl>
+                    </FormControl>
+                  </div>
 
                   {/* Feedback */}
                   <FormMessage />
@@ -93,9 +93,9 @@ export function LoginForm() {
                   <FormLabel>{t("login-password-label")}</FormLabel>
 
                   {/* Field */}
-                  <FormControl>
-                    <div className="relative">
-                      <Lock className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <div className="relative">
+                    <Lock className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <FormControl>
                       <Input
                         type={showPassword ? "text" : "password"}
                         autoComplete="current-password"
@@ -103,24 +103,24 @@ export function LoginForm() {
                         className="h-10 px-9 text-sm"
                         {...field}
                       />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={t(
-                          showPassword ? "login-hide-password" : "login-show-password",
-                        )}
-                        onClick={() => setShowPassword((prev) => !prev)}
-                        className="absolute end-1 top-1/2 -translate-y-1/2 text-muted-foreground"
-                      >
-                        {showPassword ? (
-                          <EyeOff className="size-4" />
-                        ) : (
-                          <Eye className="size-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </FormControl>
+                    </FormControl>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={t(
+                        showPassword ? "login-hide-password" : "login-show-password",
+                      )}
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute end-1 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="size-4" />
+                      ) : (
+                        <Eye className="size-4" />
+                      )}
+                    </Button>
+                  </div>
 
                   {/* Feedback */}
                   <FormMessage />
