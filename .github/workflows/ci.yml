@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - run: yarn install --frozen-lockfile
+      - run: yarn lint
+      - run: yarn test
+
+      # The build refuses to run without these (see src/config/required-env.ts).
+      - run: yarn build
+        env:
+          VITE_API_URL: https://fashion-ecommerce-backend-teal.vercel.app/api/v1
+          VITE_STOREFRONT_URL: https://fashion-e-commerce-frontend-pi.vercel.app
+
+  # Drives the real dashboard against the real API on a seeded in-memory database.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: dashboard
+
+      - uses: actions/checkout@v4
+        with:
+          repository: Shamsmedhat/fashion-e-commerce-backend
+          path: backend
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: |
+            dashboard/yarn.lock
+            backend/yarn.lock
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}-${{ hashFiles('backend/yarn.lock') }}
+
+      - run: yarn install --frozen-lockfile
+        working-directory: backend
+      - run: node test-support/ensure-mongodb-binary.js
+        working-directory: backend
+
+      - run: yarn install --frozen-lockfile
+        working-directory: dashboard
+      - run: npx playwright install --with-deps chromium
+        working-directory: dashboard
+
+      - run: yarn test:e2e
+        working-directory: dashboard
+        env:
+          BACKEND_DIR: ../backend
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: dashboard/test-results
