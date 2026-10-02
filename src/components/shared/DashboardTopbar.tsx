@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { LogOut } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -18,7 +18,11 @@ import { useLogout } from "@/features/auth/hooks/use-logout";
 import { useAuthStore } from "@/store/auth.store";
 import { getInitials } from "@/utils/format";
 
-export function DashboardTopbar(): ReactElement {
+interface DashboardTopbarProps {
+  onOpenSidebar: () => void;
+}
+
+export function DashboardTopbar({ onOpenSidebar }: DashboardTopbarProps): ReactElement {
   // Hooks
   const { t } = useTranslation();
   const { logout } = useLogout();
@@ -27,7 +31,20 @@ export function DashboardTopbar(): ReactElement {
   const user = useAuthStore((state) => state.user);
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center justify-end gap-2 border-b border-border bg-card/80 px-6 backdrop-blur">
+    <header className="sticky top-0 z-10 flex h-16 items-center gap-2 border-b border-border bg-card/80 px-4 backdrop-blur sm:px-6">
+      {/* Sidebar toggle (drawer mode only) */}
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={t("nav-open-menu")}
+        onClick={onOpenSidebar}
+        className="lg:hidden"
+      >
+        <Menu className="h-4 w-4" />
+      </Button>
+
+      <div className="flex-1" />
+
       <LanguageSwitcher />
       <ThemeToggle />
 
