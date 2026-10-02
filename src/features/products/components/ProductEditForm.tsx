@@ -53,24 +53,10 @@ export function ProductEditForm({ product, categories }: ProductEditFormProps) {
 
   // Functions
   function onSubmit(values: ProductEditFields) {
-    const hasNewImages = values.coverImage.length > 0 || values.images.length > 0;
-
-    if (!hasNewImages) {
-      updateProduct({
-        name: values.name,
-        description: values.description,
-        categoryId: values.categoryId,
-      });
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("name", values.name);
-    formData.append("description", values.description);
-    formData.append("categoryId", values.categoryId);
-    if (values.coverImage[0]) formData.append("coverImage", values.coverImage[0]);
-    values.images.forEach((file) => formData.append("images", file));
-    updateProduct(formData);
+    updateProduct(values, {
+      // Drop the picked files once saved so another save doesn't upload them again.
+      onSuccess: () => form.reset({ ...values, coverImage: [], images: [] }),
+    });
   }
 
   return (

@@ -176,7 +176,8 @@ A thin typed wrapper over `fetch` that:
 - Prefixes relative paths with `env.API_URL` (full paths pass through untouched).
 - Sends `Authorization: Bearer <token>` by reading the token from the Zustand store.
 - JSON‑encodes bodies, **except `FormData`** (left as‑is so the browser sets the
-  multipart boundary — used for product image uploads).
+  multipart boundary). The backend itself is JSON‑only — product images go straight
+  to Cloudinary (see §9), never through `apiFetch`.
 - On non‑2xx, throws a typed **`AppError`** (`statusCode` + `type`).
 - Returns `undefined` for `204 No Content` (deletes).
 
@@ -298,7 +299,8 @@ export function buildLoginSchema(t: Translate) {
 
 ```
 features/products/
-├── services/product.service.ts     # getProducts, createProduct (FormData), updateVariant…
+├── services/product.service.ts     # getProducts, createProduct, updateVariant…
+├── services/upload.service.ts      # signed direct-to-Cloudinary image uploads
 ├── hooks/use-products.ts           # useQuery reads
 ├── hooks/use-product-mutations.ts  # create / update / delete (useMutation)
 ├── hooks/use-variant-mutations.ts  # variant create / update / delete
@@ -311,9 +313,9 @@ features/products/
 A **mutation hook** ties it together — call the service, then invalidate caches, toast,
 navigate, and (new) revalidate the storefront:
 
-```26:34:src/features/products/hooks/use-product-mutations.ts
+```29:38:src/features/products/hooks/use-product-mutations.ts
   const { isPending, mutate } = useMutation({
-    mutationFn: (formData: FormData) => createProductService(formData),
+    mutationFn: (fields: ProductCreateFields) => createProductService(fields),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
       revalidateStorefront(["products", "best-selling"]);
@@ -326,6 +328,13 @@ navigate, and (new) revalidate the storefront:
 
 Products and categories follow the identical pattern (variants reuse a shared
 `useInvalidateProduct` helper).
+
+**Image uploads.** The API accepts only JSON with Cloudinary URLs, so
+`createProductService` / `updateProductService` first call `uploadProductImagesService`:
+it fetches a short‑lived signature from `GET /products/upload-signature` (admin JWT),
+posts each file directly to Cloudinary with a dedicated `fetch` (the JWT is never sent
+there), and returns the hosted URLs that then go into the product's JSON body. On edit,
+image fields are sent only when new files were picked.
 
 ---
 

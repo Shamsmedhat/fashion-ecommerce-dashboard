@@ -6,11 +6,14 @@ import { toast } from "sonner";
 import { queryKeys } from "@/config/query-keys";
 import { revalidateStorefront } from "@/services/revalidate";
 import { getErrorMessage } from "@/utils/catch-error";
+import type {
+  ProductCreateFields,
+  ProductEditFields,
+} from "../schemas/product.schema";
 import {
   createProductService,
   deleteProductService,
   updateProductService,
-  type ProductUpdateInput,
 } from "../services/product.service";
 
 export function useCreateProduct() {
@@ -25,7 +28,7 @@ export function useCreateProduct() {
 
   // Mutation
   const { isPending, mutate } = useMutation({
-    mutationFn: (formData: FormData) => createProductService(formData),
+    mutationFn: (fields: ProductCreateFields) => createProductService(fields),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
       revalidateStorefront(["products", "best-selling"]);
@@ -47,8 +50,7 @@ export function useUpdateProduct(id: string) {
 
   // Mutation
   const { isPending, mutate } = useMutation({
-    mutationFn: (body: FormData | ProductUpdateInput) =>
-      updateProductService(id, body),
+    mutationFn: (fields: ProductEditFields) => updateProductService(id, fields),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.products.detail(id) });

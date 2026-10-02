@@ -41,6 +41,17 @@ export interface VariantsResponse {
   data: { variants: ProductVariant[] };
 }
 
+export interface UploadSignatureResponse {
+  status: "success";
+  data: {
+    timestamp: number;
+    folder: string;
+    signature: string;
+    cloudName: string;
+    apiKey: string;
+  };
+}
+
 export interface ProductFilters {
   page?: number;
   limit?: number;

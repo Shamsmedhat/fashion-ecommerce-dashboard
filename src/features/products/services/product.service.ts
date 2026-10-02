@@ -1,10 +1,15 @@
 import { apiFetch } from "@/services/api";
 import { buildQueryString } from "@/utils/build-query-string";
 import type {
+  ProductCreateFields,
+  ProductEditFields,
+} from "../schemas/product.schema";
+import type {
   ProductResponse,
   ProductsResponse,
   VariantsResponse,
 } from "../types/product";
+import { uploadProductImagesService } from "./upload.service";
 
 export interface VariantInput {
   size?: string;
@@ -14,10 +19,21 @@ export interface VariantInput {
   priceDiscount?: number;
 }
 
+export interface ProductCreateInput {
+  name: string;
+  description: string;
+  categoryId: string;
+  coverImage: string;
+  images: string[];
+  variants: VariantInput[];
+}
+
 export interface ProductUpdateInput {
   name?: string;
   description?: string;
   categoryId?: string;
+  coverImage?: string;
+  images?: string[];
 }
 
 export async function getProductsService(
@@ -45,20 +61,50 @@ export async function getProductVariantsService(
   return apiFetch<VariantsResponse>(`/products/${id}/variants`);
 }
 
+// The API accepts JSON with Cloudinary URLs only, so the files are uploaded first.
 export async function createProductService(
-  formData: FormData,
+  fields: ProductCreateFields,
 ): Promise<ProductResponse> {
+  const [coverImage, ...images] = await uploadProductImagesService([
+    fields.coverImage[0],
+    ...fields.images,
+  ]);
+
+  const body: ProductCreateInput = {
+    name: fields.name,
+    description: fields.description,
+    categoryId: fields.categoryId,
+    coverImage,
+    images,
+    variants: fields.variants,
+  };
+
   return apiFetch<ProductResponse>("/products", {
     method: "POST",
-    body: formData,
+    body,
   });
 }
 
-// Accepts FormData (when images change) or a plain JSON body otherwise.
+// Image fields are sent only when new files were picked; a new gallery replaces the old one.
 export async function updateProductService(
   id: string,
-  body: FormData | ProductUpdateInput,
+  fields: ProductEditFields,
 ): Promise<ProductResponse> {
+  const newCover = fields.coverImage[0];
+  const urls = await uploadProductImagesService([
+    ...(newCover ? [newCover] : []),
+    ...fields.images,
+  ]);
+  const images = newCover ? urls.slice(1) : urls;
+
+  const body: ProductUpdateInput = {
+    name: fields.name,
+    description: fields.description,
+    categoryId: fields.categoryId,
+    ...(newCover ? { coverImage: urls[0] } : {}),
+    ...(images.length > 0 ? { images } : {}),
+  };
+
   return apiFetch<ProductResponse>(`/products/${id}`, {
     method: "PATCH",
     body,

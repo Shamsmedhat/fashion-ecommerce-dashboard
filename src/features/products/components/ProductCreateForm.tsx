@@ -56,14 +56,7 @@ export function ProductCreateForm({ categories }: ProductCreateFormProps) {
 
   // Functions
   function onSubmit(values: ProductCreateFields) {
-    const formData = new FormData();
-    formData.append("coverImage", values.coverImage[0]);
-    values.images.forEach((file) => formData.append("images", file));
-    formData.append("name", values.name);
-    formData.append("description", values.description);
-    formData.append("categoryId", values.categoryId);
-    formData.append("variants", JSON.stringify(values.variants));
-    createProduct(formData);
+    createProduct(values);
   }
 
   return (
