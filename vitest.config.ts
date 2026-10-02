@@ -12,9 +12,12 @@ export default defineConfig({
     },
   },
   test: {
+    // Service and utility tests run in plain Node; component tests opt into a DOM with
+    // a `// @vitest-environment jsdom` comment at the top of the file.
     environment: "node",
     globals: true,
     pool: "threads",
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
+    setupFiles: ["./src/test/setup.ts"],
   },
 });
