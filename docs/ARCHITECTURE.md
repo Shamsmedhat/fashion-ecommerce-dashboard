@@ -440,8 +440,10 @@ backend, plus CORS for the browser hop:
    - non‑200 → **401**; `data.user.role !== "admin"` → **403**.
 2. Accept `{ tag }` or `{ tags[] }`; validate each against the allowlist or the
    `product-{id}` pattern (**400** on malformed body), then `revalidateTag` each.
-3. CORS: `OPTIONS` handler + headers (`Allow-Origin: CMS_ORIGIN`, methods `POST, OPTIONS`,
-   headers `Authorization, Content-Type`) on every response.
+3. CORS: an `OPTIONS` handler, and on every response the caller's origin is echoed back in
+   `Access-Control-Allow-Origin` when it is an allowed dashboard origin (methods
+   `POST, OPTIONS`, headers `Authorization, Content-Type`). The allowed origins come from
+   `CMS_ORIGIN` (comma‑separated) and default to local development plus the deployed dashboard.
 
 ### Backend side — `GET /api/v1/users/me`
 
@@ -502,8 +504,9 @@ Other config: `config/constants.ts` (`DEFAULT_PAGE/LIMIT/SORT`, image‑upload g
 variant sizes, the demo login pre‑filled on the login form), `config/router.ts`,
 `config/query.config.ts`, `config/query-keys.ts`.
 
-Storefront env (for the revalidate route): `API_URL`, `CMS_ORIGIN`
-(= `http://localhost:5173`), `NEXTAUTH_SECRET`. `REVALIDATE_SECRET` is no longer used.
+Storefront env (for the revalidate route): `API_URL`, `NEXTAUTH_SECRET`, and optionally
+`CMS_ORIGIN` (it already allows `http://localhost:5173` and the deployed dashboard by default).
+`REVALIDATE_SECRET` is no longer used.
 
 ---
 

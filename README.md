@@ -8,6 +8,20 @@ Admin CMS for managing products, variants, and categories of the fashion store.
 
 The login form opens pre‑filled with a demo admin account, so you can sign in with one click.
 
+## Screenshots
+
+| Overview | Products |
+|---|---|
+| ![Overview](docs/screenshots/overview.jpg) | ![Products](docs/screenshots/products.jpg) |
+
+| Product and its variants | Categories |
+|---|---|
+| ![Product edit](docs/screenshots/product-edit.jpg) | ![Categories](docs/screenshots/categories.jpg) |
+
+| Login (demo account pre-filled) | Navigation on a phone |
+|---|---|
+| ![Login](docs/screenshots/login.jpg) | <img src="docs/screenshots/mobile-menu.jpg" alt="Mobile navigation drawer" width="240" /> |
+
 ## Stack
 
 React 19 · Vite · TypeScript · TanStack Router/Query · Zustand · React Hook Form + Zod · Tailwind v4 · shadcn/ui · i18n (EN/AR, RTL)
@@ -56,6 +70,7 @@ Both are required: the production build fails with a clear message if one is mis
 | `yarn test` | Run unit and component tests (Vitest) |
 | `yarn test:e2e` | Run end‑to‑end tests (Playwright) |
 | `yarn lint` | Lint the project |
+| `yarn typecheck` | Type-check, including the project's own `.d.ts` files |
 
 ## Tests
 
