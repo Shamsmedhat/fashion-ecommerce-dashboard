@@ -8,6 +8,8 @@
   "nav-orders": "الطلبات",
   "nav-customers": "العملاء",
   "nav-reviews": "التقييمات",
+  "nav-open-menu": "فتح القائمة",
+  "nav-close-menu": "إغلاق القائمة",
   "nav-settings": "الإعدادات",
 
   "admin": "مدير",
@@ -113,6 +115,7 @@
   "variant-created": "تمت إضافة المتغير",
   "variant-updated": "تم تحديث المتغير",
   "variant-deleted": "تم حذف المتغير",
+  "variant-keep-one": "يجب أن يحتفظ المنتج بمتغير واحد على الأقل",
   "variant-delete-title": "حذف المتغير",
   "variant-delete-description": "سيؤدي هذا إلى إزالة هذا المتغير من المنتج نهائيًا.",
   "field-size": "المقاس",

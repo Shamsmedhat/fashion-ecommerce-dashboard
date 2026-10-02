@@ -58,7 +58,7 @@ function ProductsPage() {
     "variants.size": search.size,
   };
   const { data, isLoading, isError, refetch } = useProducts(filters);
-  const categoriesQuery = useCategories({ limit: 200 });
+  const categoriesQuery = useCategories({ limit: 100 });
 
   // Mutation
   const { isPending: isDeleting, deleteProduct } = useDeleteProduct();

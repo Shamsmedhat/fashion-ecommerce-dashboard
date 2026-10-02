@@ -10,6 +10,7 @@ import {
   deleteVariantService,
   updateVariantService,
   type VariantInput,
+  type VariantUpdateInput,
 } from "../services/product.service";
 
 function useInvalidateProduct(id: string) {
@@ -48,7 +49,7 @@ export function useUpdateVariant(id: string) {
 
   // Mutation
   const { isPending, mutate } = useMutation({
-    mutationFn: ({ varId, input }: { varId: string; input: Partial<VariantInput> }) =>
+    mutationFn: ({ varId, input }: { varId: string; input: VariantUpdateInput }) =>
       updateVariantService(id, varId, input),
     onSuccess: () => {
       invalidate();

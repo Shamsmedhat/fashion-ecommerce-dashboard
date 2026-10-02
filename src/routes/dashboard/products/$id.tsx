@@ -31,7 +31,7 @@ function ProductDetailPage() {
 
   // Queries
   const { data, isLoading, isError, refetch } = useProduct(id);
-  const categoriesQuery = useCategories({ limit: 200 });
+  const categoriesQuery = useCategories({ limit: 100 });
 
   // Mutation
   const { isPending: isDeleting, deleteProduct } = useDeleteProduct();

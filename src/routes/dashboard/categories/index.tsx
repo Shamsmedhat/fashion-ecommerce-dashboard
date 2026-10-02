@@ -41,7 +41,7 @@ function CategoriesPage() {
 
   // Queries
   const { data, isLoading, isError, refetch } = useCategories({ page, limit, sort });
-  const allCategories = useCategories({ limit: 200 });
+  const allCategories = useCategories({ limit: 100 });
 
   // Mutation
   const { isPending: isDeleting, deleteCategory } = useDeleteCategory();

@@ -19,6 +19,11 @@ export interface VariantInput {
   priceDiscount?: number;
 }
 
+// On update, null clears an optional field (removing a discount).
+export type VariantUpdateInput = Partial<Omit<VariantInput, "priceDiscount">> & {
+  priceDiscount?: number | null;
+};
+
 export interface ProductCreateInput {
   name: string;
   description: string;
@@ -128,7 +133,7 @@ export async function createVariantService(
 export async function updateVariantService(
   id: string,
   varId: string,
-  input: Partial<VariantInput>,
+  input: VariantUpdateInput,
 ): Promise<ProductResponse> {
   return apiFetch<ProductResponse>(`/products/${id}/variants/${varId}`, {
     method: "PATCH",

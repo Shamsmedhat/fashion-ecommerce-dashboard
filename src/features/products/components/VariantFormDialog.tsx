@@ -91,7 +91,9 @@ export function VariantFormDialog({
   function onSubmit(values: VariantFields) {
     const close = { onSuccess: () => onOpenChange(false) };
     if (variant) {
-      updateVariant({ varId: variant._id, input: values }, close);
+      // An emptied discount field must reach the API as null: a missing key leaves the old value.
+      const input = { ...values, priceDiscount: values.priceDiscount ?? null };
+      updateVariant({ varId: variant._id, input }, close);
     } else {
       createVariant(values, close);
     }

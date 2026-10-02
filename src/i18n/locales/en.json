@@ -8,6 +8,8 @@
   "nav-orders": "Orders",
   "nav-customers": "Customers",
   "nav-reviews": "Reviews",
+  "nav-open-menu": "Open menu",
+  "nav-close-menu": "Close menu",
   "nav-settings": "Settings",
 
   "admin": "Administrator",
@@ -113,6 +115,7 @@
   "variant-created": "Variant added",
   "variant-updated": "Variant updated",
   "variant-deleted": "Variant deleted",
+  "variant-keep-one": "A product must keep at least one variant",
   "variant-delete-title": "Delete variant",
   "variant-delete-description": "This permanently removes this variant from the product.",
   "field-size": "Size",

@@ -28,6 +28,9 @@ export function VariantManager({ productId, variants }: VariantManagerProps) {
   // Mutation
   const { isPending: isDeleting, deleteVariant } = useDeleteVariant(productId);
 
+  // Variables — the API refuses to delete a product's only variant.
+  const isLastVariant = variants.length <= 1;
+
   // Functions
   function openAdd() {
     setEditing(null);
@@ -91,6 +94,8 @@ export function VariantManager({ productId, variants }: VariantManagerProps) {
                     variant="ghost"
                     size="icon-sm"
                     aria-label={t("action-delete")}
+                    title={isLastVariant ? t("variant-keep-one") : undefined}
+                    disabled={isLastVariant}
                     onClick={() => setToDelete(variant)}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />

@@ -18,7 +18,7 @@ function NewProductPage() {
   const { t } = useTranslation();
 
   // Queries
-  const { data, isLoading, isError, refetch } = useCategories({ limit: 200 });
+  const { data, isLoading, isError, refetch } = useCategories({ limit: 100 });
 
   // Variables
   const categories = data?.data.categories ?? [];

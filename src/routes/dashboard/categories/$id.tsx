@@ -23,7 +23,7 @@ function EditCategoryPage() {
 
   // Queries
   const { data, isLoading, isError, refetch } = useCategory(id);
-  const allCategories = useCategories({ limit: 200 });
+  const allCategories = useCategories({ limit: 100 });
 
   // Variables
   const category = data?.data.category;
