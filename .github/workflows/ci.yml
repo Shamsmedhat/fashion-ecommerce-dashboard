@@ -18,6 +18,7 @@ jobs:
 
       - run: yarn install --frozen-lockfile
       - run: yarn lint
+      - run: yarn typecheck
       - run: yarn test
 
       # The build refuses to run without these (see src/config/required-env.ts).
